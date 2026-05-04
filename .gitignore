@@ -4,3 +4,10 @@ app.log
 node_modules/   
 build/          
 dist/           
+.env
+coverage/
+npm-debug.log*
+yarn-error.log*
+.idea/
+*.log
+*.local

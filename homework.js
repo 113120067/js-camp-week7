@@ -23,8 +23,8 @@ const ADMIN_TOKEN = process.env.API_KEY;
  * @returns {string} - 格式 'YYYY/MM/DD HH:mm'，例如 '2024/01/01 08:00'
  */
 function formatOrderDate(timestamp) {
-  // 請實作此函式
-  // 提示：dayjs.unix(timestamp).format('YYYY/MM/DD HH:mm')
+  if (timestamp == null) return "";
+  return dayjs.unix(Number(timestamp)).format("YYYY/MM/DD HH:mm");
 }
 
 /**
@@ -33,11 +33,10 @@ function formatOrderDate(timestamp) {
  * @returns {string} - 例如 '3 天前' 或 '今天'
  */
 function getDaysAgo(timestamp) {
-  // 請實作此函式
-  // 提示：
-  // 1. 用 dayjs() 取得今天
-  // 2. 用 dayjs.unix(timestamp) 取得訂單日期
-  // 3. 用 .diff() 計算天數差異
+  const now = dayjs();
+  const then = dayjs.unix(Number(timestamp));
+  const diff = now.diff(then, "day");
+  return diff === 0 ? "今天" : `${diff} 天前`;
 }
 
 /**
@@ -46,7 +45,10 @@ function getDaysAgo(timestamp) {
  * @returns {boolean} - 超過 7 天回傳 true
  */
 function isOrderOverdue(timestamp) {
-  // 請實作此函式
+  const now = dayjs();
+  const then = dayjs.unix(Number(timestamp));
+  const diff = now.diff(then, "day");
+  return diff > 7;
 }
 
 /**
@@ -55,11 +57,16 @@ function isOrderOverdue(timestamp) {
  * @returns {Array} - 篩選出 createdAt 在本週的訂單
  */
 function getThisWeekOrders(orders) {
-  // 請實作此函式
-  // 提示：
-  // 1. 用 dayjs().startOf('week') 取得本週開始
-  // 2. 用 dayjs().endOf('week') 取得本週結束
-  // 3. 用 .isBefore() 和 .isAfter() 判斷
+  if (!Array.isArray(orders)) return [];
+  const start = dayjs().startOf("week");
+  const end = dayjs().endOf("week");
+  return orders.filter((o) => {
+    const d = dayjs.unix(Number(o.createdAt));
+    return (
+      (d.isAfter(start) || d.isSame(start)) &&
+      (d.isBefore(end) || d.isSame(end))
+    );
+  });
 }
 
 // ========================================
@@ -79,7 +86,21 @@ function getThisWeekOrders(orders) {
  * - payment: 必須是 'ATM', 'Credit Card', 'Apple Pay' 其中之一
  */
 function validateOrderUser(data) {
-  // 請實作此函式
+  const errors = [];
+  if (!data || typeof data !== "object") {
+    return { isValid: false, errors: ["資料格式不正確"] };
+  }
+  if (!data.name || String(data.name).trim() === "")
+    errors.push("name 不可為空");
+  if (!data.tel || !/^09\d{8}$/.test(String(data.tel)))
+    errors.push("tel 格式錯誤，應為 09 開頭的 10 位數字");
+  if (!data.email || !String(data.email).includes("@"))
+    errors.push("email 必須包含 @");
+  if (!data.address || String(data.address).trim() === "")
+    errors.push("address 不可為空");
+  const allowed = ["ATM", "Credit Card", "Apple Pay"];
+  if (!allowed.includes(data.payment)) errors.push("payment 非允許的付款方式");
+  return { isValid: errors.length === 0, errors };
 }
 
 /**
@@ -93,7 +114,11 @@ function validateOrderUser(data) {
  * - 不可大於 99
  */
 function validateCartQuantity(quantity) {
-  // 請實作此函式
+  const isInteger = Number.isInteger(quantity);
+  if (!isInteger) return { isValid: false, error: "數量必須為整數" };
+  if (quantity < 1) return { isValid: false, error: "數量不可小於 1" };
+  if (quantity > 99) return { isValid: false, error: "數量不可大於 99" };
+  return { isValid: true };
 }
 
 // ========================================
@@ -105,8 +130,9 @@ function validateCartQuantity(quantity) {
  * @returns {string} - 格式 'ORD-xxxxxxxx'
  */
 function generateOrderId() {
-  // 請實作此函式
-  // 提示：可以用 Date.now().toString(36) + Math.random().toString(36).slice(2)
+  return (
+    "ORD-" + (Date.now().toString(36) + Math.random().toString(36).slice(2))
+  );
 }
 
 /**
@@ -114,7 +140,9 @@ function generateOrderId() {
  * @returns {string} - 格式 'CART-xxxxxxxx'
  */
 function generateCartItemId() {
-  // 請實作此函式
+  return (
+    "CART-" + (Date.now().toString(36) + Math.random().toString(36).slice(2))
+  );
 }
 
 // ========================================
@@ -126,9 +154,10 @@ function generateCartItemId() {
  * @returns {Promise<Array>} - 回傳 products 陣列
  */
 async function getProductsWithAxios() {
-  // 請實作此函式
-  // 提示：axios.get() 會自動解析 JSON，不需要 .json()
-  // 回傳 response.data.products
+  if (!API_PATH) throw new Error("API_PATH 未設定");
+  const url = `${BASE_URL}/api/${API_PATH}/products`;
+  const res = await axios.get(url);
+  return res.data && res.data.products ? res.data.products : [];
 }
 
 /**
@@ -138,8 +167,11 @@ async function getProductsWithAxios() {
  * @returns {Promise<Object>} - 回傳購物車資料
  */
 async function addToCartWithAxios(productId, quantity) {
-  // 請實作此函式
-  // 提示：axios.post(url, data) 會自動設定 Content-Type
+  if (!API_PATH) throw new Error("API_PATH 未設定");
+  const url = `${BASE_URL}/api/${API_PATH}/carts`;
+  const data = { data: { productId, quantity } };
+  const res = await axios.post(url, data);
+  return res.data;
 }
 
 /**
@@ -147,8 +179,13 @@ async function addToCartWithAxios(productId, quantity) {
  * @returns {Promise<Array>} - 回傳訂單陣列
  */
 async function getOrdersWithAxios() {
-  // 請實作此函式
-  // 提示：axios.get(url, { headers: { authorization: token } })
+  if (!API_PATH || !ADMIN_TOKEN) throw new Error("API_PATH 或 API_KEY 未設定");
+  const m = String(API_PATH).match(/customer\/(.+)$/);
+  const url = m
+    ? `${BASE_URL}/api/livejs/v1/admin/${m[1]}/orders`
+    : `${BASE_URL}/api/${API_PATH}/admin/orders`;
+  const res = await axios.get(url, { headers: { authorization: ADMIN_TOKEN } });
+  return res.data && res.data.orders ? res.data.orders : [];
 }
 
 /*
@@ -178,7 +215,16 @@ const OrderService = {
    * @returns {Promise<Array>} - 訂單陣列
    */
   async fetchOrders() {
-    // 請實作此函式
+    if (!this.apiPath || !this.token)
+      throw new Error("OrderService apiPath 或 token 未設定");
+    const m = String(this.apiPath).match(/customer\/(.+)$/);
+    const url = m
+      ? `${this.baseURL}/api/livejs/v1/admin/${m[1]}/orders`
+      : `${this.baseURL}/api/${this.apiPath}/admin/orders`;
+    const res = await axios.get(url, {
+      headers: { authorization: this.token },
+    });
+    return res.data && res.data.orders ? res.data.orders : [];
   },
 
   /**
@@ -187,7 +233,11 @@ const OrderService = {
    * @returns {Array} - 為每筆訂單加上 formattedDate 欄位
    */
   formatOrders(orders) {
-    // 請實作此函式
+    if (!Array.isArray(orders)) return [];
+    return orders.map((o) => ({
+      ...o,
+      formattedDate: formatOrderDate(o.createdAt),
+    }));
   },
 
   /**
@@ -196,7 +246,8 @@ const OrderService = {
    * @returns {Array} - paid: false 的訂單
    */
   filterUnpaidOrders(orders) {
-    // 請實作此函式
+    if (!Array.isArray(orders)) return [];
+    return orders.filter((o) => o.paid === false || o.paid === "false");
   },
 
   /**
