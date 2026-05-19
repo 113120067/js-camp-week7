@@ -155,7 +155,7 @@ function generateCartItemId() {
  */
 async function getProductsWithAxios() {
   if (!API_PATH) throw new Error("API_PATH 未設定");
-  const url = `${BASE_URL}/api/${API_PATH}/products`;
+  const url = `${BASE_URL}/api/livejs/v1/customer/${API_PATH}/products`;
   const res = await axios.get(url);
   return res.data && res.data.products ? res.data.products : [];
 }
@@ -168,7 +168,7 @@ async function getProductsWithAxios() {
  */
 async function addToCartWithAxios(productId, quantity) {
   if (!API_PATH) throw new Error("API_PATH 未設定");
-  const url = `${BASE_URL}/api/${API_PATH}/carts`;
+  const url = `${BASE_URL}/api/livejs/v1/customer/${API_PATH}/carts`;
   const data = { data: { productId, quantity } };
   const res = await axios.post(url, data);
   return res.data;
@@ -180,10 +180,7 @@ async function addToCartWithAxios(productId, quantity) {
  */
 async function getOrdersWithAxios() {
   if (!API_PATH || !ADMIN_TOKEN) throw new Error("API_PATH 或 API_KEY 未設定");
-  const m = String(API_PATH).match(/customer\/(.+)$/);
-  const url = m
-    ? `${BASE_URL}/api/livejs/v1/admin/${m[1]}/orders`
-    : `${BASE_URL}/api/${API_PATH}/admin/orders`;
+  const url = `${BASE_URL}/api/livejs/v1/admin/${API_PATH}/orders`;
   const res = await axios.get(url, { headers: { authorization: ADMIN_TOKEN } });
   return res.data && res.data.orders ? res.data.orders : [];
 }
@@ -191,11 +188,11 @@ async function getOrdersWithAxios() {
 /*
 比較題：請說明 fetch 和 axios 的主要差異
 
-1. ____________________________________
+1. fetch 回傳的是原生 Response 物件，通常要再手動呼叫 res.json() 才能取得 JSON；axios 會自動把 JSON 解析好，資料直接放在 res.data。
 
-2. ____________________________________
+2. fetch 的寫法比較偏原生 API，常常要自己寫 res.json()、res.ok 檢查；axios 的語法比較精簡，回傳結果可以直接用 data，也比較容易閱讀。
 
-3. ____________________________________
+3. axios 內建攔截器、timeout、預設 headers 等功能，寫 API 請求時比較方便；fetch 較輕量，但很多進階功能要自己補。
 */
 
 // ========================================
@@ -217,10 +214,7 @@ const OrderService = {
   async fetchOrders() {
     if (!this.apiPath || !this.token)
       throw new Error("OrderService apiPath 或 token 未設定");
-    const m = String(this.apiPath).match(/customer\/(.+)$/);
-    const url = m
-      ? `${this.baseURL}/api/livejs/v1/admin/${m[1]}/orders`
-      : `${this.baseURL}/api/${this.apiPath}/admin/orders`;
+    const url = `${this.baseURL}/api/livejs/v1/admin/${this.apiPath}/orders`;
     const res = await axios.get(url, {
       headers: { authorization: this.token },
     });
